@@ -1,3 +1,4 @@
+import gc
 import os
 from typing import Callable, Dict
 
@@ -24,6 +25,9 @@ def load_model():
 def unload_model():
     global pipe
     del pipe
+    pipe = None
+    gc.collect()
+    torch.cuda.empty_cache()
 
 def run(prompt: str, callback: PipelineCallback) -> str:
     global pipe

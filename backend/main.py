@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import text2img.sana as sana
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
+import generate_3d_gaussian
 
 app = FastAPI()
 
@@ -42,19 +43,9 @@ async def generate_image(prompt: str, websocket: WebSocket) -> str:
     def callback(step: int):
         progress = int((step / 20) * 100)
         print(f"Progress: {progress}%")
-        # Schedule the send_progress coroutine
         asyncio.run(send_progress(progress))
     
-    
-    # Example of generating images with progress updates
-    # image_path = r"/text-to-image/sana.png"
-    # total_steps = 5
-    # for step in range(1, total_steps + 1):
-    #     # Simulate processing time
-    #     await asyncio.sleep(1)
-    #     progress = int((step / total_steps) * 100)
-    #     await websocket.send_text(json.dumps({"type": "progress", "progress": progress}))
-    #     # Optionally, generate or fetch actual image URLs here
+
     sana.load_model()
     image_path = await asyncio.get_event_loop().run_in_executor(
         executor, sana.run, prompt, callback
@@ -87,3 +78,45 @@ async def generate_webp_image(image_path: str) -> bytes:
         webp_data = webp_buffer.getvalue()
     
     return webp_data
+
+@app.websocket("/ws/generate-3d-view")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        # Receive the initial binary data of the iamge
+        image_data = await websocket.receive_bytes()
+        if not image_data:
+            await websocket.send_text(json.dumps({"type": "error", "message": "No image provided."}))
+            await websocket.close()
+            return
+
+        await generate_3d_view(image_data, websocket)
+        await websocket.close()
+    except WebSocketDisconnect:
+        print("Client disconnected")
+    except Exception as e:
+        await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+        await websocket.close()
+        
+
+async def generate_3d_view(image_data: bytes, websocket: WebSocket) -> None:
+    # read ply from output/test.ply and return the bytes
+    ply_bytes = open("output/test.ply", "rb").read()
+    await websocket.send_bytes(ply_bytes)
+    return
+    
+    async def send_progress(progress: int):
+        await websocket.send_text(json.dumps({"type": "progress", "progress": progress}))
+
+    def callback(step: int):
+        progress = int((step * 20))
+        print(f"Progress: {progress}%")
+        asyncio.run(send_progress(progress))
+
+    generate_3d_gaussian.load_model()
+    gaussian_ply_bytes = await asyncio.get_event_loop().run_in_executor(
+        executor, generate_3d_gaussian.run, image_data, callback
+    )
+    generate_3d_gaussian.unload_model()
+
+    await websocket.send_bytes(gaussian_ply_bytes)
