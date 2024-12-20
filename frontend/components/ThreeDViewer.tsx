@@ -2,50 +2,106 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
-
+import * as BABYLON from "babylonjs";
+import "@babylonjs/loaders";
 type ThreeDViewerProps = {
-  data: any;
+  data: string;
 };
 
 export default function ThreeDViewer({ data }: ThreeDViewerProps) {
-  const mountRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<BABYLON.Engine | null>(null);
+  const sceneRef = useRef<BABYLON.Scene | null>(null);
 
   useEffect(() => {
-    if (!mountRef.current) return;
-    const width = mountRef.current.clientWidth;
-    const height = mountRef.current.clientHeight;
+    if (!canvasRef.current) return;
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#fff");
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 3;
+    // Initialize BabylonJS engine and scene
+    const engine = new BABYLON.Engine(canvasRef.current, true);
+    engineRef.current = engine;
+    const scene = new BABYLON.Scene(engine);
+    sceneRef.current = scene;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    mountRef.current.appendChild(renderer.domElement);
+    // Set up camera
+    const camera = new BABYLON.ArcRotateCamera(
+      "Camera",
+      0,
+      Math.PI / 2,
+      2,
+      BABYLON.Vector3.Zero(),
+      scene,
+    );
+    camera.minZ = 0;
+    // reduce zoom sensitivity
+    camera.wheelPrecision = 50;
+    camera.attachControl(canvasRef.current, true);
 
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial({ color: 0x0033ff });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+    // Set up lighting
+    const light = new BABYLON.HemisphericLight(
+      "HemiLight",
+      new BABYLON.Vector3(0, 1, 0),
+      scene,
+    );
+    light.intensity = 0.7;
 
-    let frameId: number;
-    const animate = () => {
-      frameId = requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
-      renderer.render(scene, camera);
+    // Setup gaussian splat
+    // BABYLON.SceneLoader.ImportMeshAsync(
+    //   null,
+    //   data,
+    //   undefined,
+    //   scene,
+    //   undefined,
+    //   "splat",
+    //   "blob.ply",
+    // ).then((result) => {
+    //   const gaussianSplattingMesh = result.meshes[0];
+    //   gaussianSplattingMesh.position = new BABYLON.Vector3(0, 0, 0);
+    //   gaussianSplattingMesh.rotation = new BABYLON.Vector3(0, Math.PI, 0);
+    //   console.log("Loaded mesh", gaussianSplattingMesh);
+    // });
+    let gs;
+    const loadModel = async (url: string) => {
+      try {
+        gs = new BABYLON.GaussianSplattingMesh("gs", null, scene);
+        await gs.loadFileAsync(url);
+        // rotate
+        gs.rotation = new BABYLON.Vector3(
+          (Math.PI * 3) / 2,
+          (Math.PI * 3) / 2,
+          0,
+        );
+        gs.position = new BABYLON.Vector3(0, 0, 0);
+      } catch (err) {
+        console.error("Failed to load model:", err);
+        alert("Failed to load model. Please check the URL or file format.");
+        // Fallback: Provide a placeholder model
+        gs = BABYLON.MeshBuilder.CreateBox("fallbackBox", {}, scene);
+      }
     };
 
-    animate();
+    loadModel(data);
+
+    // Start the render loop
+    engine.runRenderLoop(() => {
+      scene.render();
+    });
+
+    // Handle window resize
+    const handleResize = () => {
+      engine.resize();
+    };
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      renderer.dispose();
-      mountRef.current?.removeChild(renderer.domElement);
+      window.removeEventListener("resize", handleResize);
+      engine.dispose();
     };
   }, [data]);
 
-  return <div style={{ width: "100%", height: "100%" }} ref={mountRef} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ width: "100%", height: "100%", display: "block" }}
+    />
+  );
 }

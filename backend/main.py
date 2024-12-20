@@ -1,6 +1,7 @@
 # backend/main.py
 import io
 
+import rembg
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import asyncio
 import json
@@ -101,9 +102,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def generate_3d_view(image_data: bytes, websocket: WebSocket) -> None:
     # read ply from output/test.ply and return the bytes
-    ply_bytes = open("output/test.ply", "rb").read()
-    await websocket.send_bytes(ply_bytes)
-    return
+    # ply_bytes = open("output/test.ply", "rb").read()
+    # await websocket.send_bytes(ply_bytes)
+    # return
     
     async def send_progress(progress: int):
         await websocket.send_text(json.dumps({"type": "progress", "progress": progress}))
@@ -120,3 +121,21 @@ async def generate_3d_view(image_data: bytes, websocket: WebSocket) -> None:
     generate_3d_gaussian.unload_model()
 
     await websocket.send_bytes(gaussian_ply_bytes)
+
+
+@app.websocket("/ws/remove-background")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            input_image = Image.open(io.BytesIO(data))
+            output_image = rembg.remove(input_image)
+
+            buf = io.BytesIO()
+            output_image.save(buf, format='PNG')
+            processed_bytes = buf.getvalue()
+
+            await websocket.send_bytes(processed_bytes)
+    except WebSocketDisconnect:
+        print("Client disconnected")

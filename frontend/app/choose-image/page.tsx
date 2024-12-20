@@ -1,4 +1,3 @@
-// app/prompt/page.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -19,9 +18,9 @@ interface WebSocketMessage {
   message?: string;
 }
 
-export default function PromptPage() {
+export default function ChooseImagePage() {
   const router = useRouter();
-  const { prompt, setGeneratedImage } = useGlobalState();
+  const { prompt, setSelectedImage } = useGlobalState();
   const [image, setImage] = useState<string | null>(null);
   const [progress, setProgress] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -69,7 +68,7 @@ export default function PromptPage() {
         const blob = new Blob([event.data], { type: "image/webp" });
         const imageUrl = URL.createObjectURL(blob);
         setImage(imageUrl);
-        setGeneratedImage(imageUrl); // Still storing as an array for compatibility
+        setSelectedImage(blob);
         setLoading(false);
         // Optionally, close the WebSocket connection
         ws.current?.close();
@@ -128,10 +127,7 @@ export default function PromptPage() {
             <Button variant="contained" onClick={() => router.push("/")}>
               Go Back
             </Button>
-            <Button
-              variant="contained"
-              onClick={() => router.push(`/choose-image`)}
-            >
+            <Button variant="contained" onClick={() => router.push(`/3d-view`)}>
               Generate 3D View
             </Button>
           </Box>

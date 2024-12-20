@@ -4,9 +4,13 @@ import { Box, Typography } from "@mui/material";
 
 interface ImageDropZoneProps {
   onDrop: (file: File | null) => void;
+  disabled?: boolean;
 }
 
-export default function DropZone({ onDrop }: ImageDropZoneProps) {
+export default function DropZone({
+  onDrop,
+  disabled = false,
+}: ImageDropZoneProps) {
   const handleDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
@@ -21,6 +25,7 @@ export default function DropZone({ onDrop }: ImageDropZoneProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleDrop,
     accept: { "image/*": [] },
+    disabled,
   });
 
   return (

@@ -7,9 +7,8 @@ type GlobalState = {
   prompt: string;
   setPrompt: (p: string) => void;
   generatedImage: string | null;
-  setGeneratedImage: (img: string) => void;
-  selectedImage: string | null;
-  setSelectedImage: (img: string | null) => void;
+  selectedImage: Blob | null;
+  setSelectedImage: (img: Blob | null) => void;
   droppedImage: File | null;
   setDroppedImage: (f: File | null) => void;
 };
@@ -19,7 +18,7 @@ const StateContext = createContext<GlobalState | undefined>(undefined);
 export function StateProvider({ children }: { children: ReactNode }) {
   const [prompt, setPrompt] = useState("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<Blob | null>(null);
   const [droppedImage, setDroppedImage] = useState<File | null>(null);
 
   const value = useMemo(
