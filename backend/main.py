@@ -64,16 +64,17 @@ async def generate_image(prompt: str, websocket: WebSocket) -> str:
 
 async def generate_webp_image(image_path: str) -> bytes:
     with Image.open(image_path) as img:
+        rembg_img = rembg.remove(img)
         # Optionally, you can perform image manipulations here
         # For example, converting to RGB if the image has an alpha channel
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
+        if rembg_img.mode in ("RGBA", "P"):
+            rembg_img = rembg_img.convert("RGB")
     
         # Create an in-memory bytes buffer
         webp_buffer = io.BytesIO()
     
         # Save the image to the buffer in WebP format
-        img.save(webp_buffer, format="WEBP", quality=80)
+        rembg_img.save(webp_buffer, format="WEBP", quality=100)
     
         # Retrieve the byte data from the buffer
         webp_data = webp_buffer.getvalue()

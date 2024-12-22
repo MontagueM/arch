@@ -32,7 +32,7 @@ def unload_model():
     gc.collect()
     torch.cuda.empty_cache()
 
-def run(prompt: str, callback: PipelineCallback) -> str:
+def run(object_prompt: str, callback: PipelineCallback) -> str:
     global pipe
     if not pipe:
         return "error model not initialised"
@@ -40,6 +40,8 @@ def run(prompt: str, callback: PipelineCallback) -> str:
     def progress_callback(self: DiffusionPipeline, step: int, timestep: int, callback_kwargs: Dict) -> Dict:
         callback(step)
         return {}
+
+    prompt = f"A single whimsical, highly detailed 3D object centered in the frame against a simple dark background. The object should fill most of the image, with no distracting elements around it. Capture it from a slightly angled front-facing perspective so its features are fully visible. Render it in a bright, vibrant, and polished illustrative style with clean edges, crisp details, and subtle, even lighting. The result should look like a standalone, hero-style product shot of a fantastical or stylized building, creature, or construct, similar to the style of high-quality concept art pieces. The object itself should be a unique, original design that's visually striking and interesting to look at, with a clear focal point and a sense of depth and dimension. The object is {object_prompt}."
 
     image = pipe(
         prompt=prompt,
@@ -51,7 +53,10 @@ def run(prompt: str, callback: PipelineCallback) -> str:
         callback_on_step_end=progress_callback,
     )[0]
 
-    image[0].save("sana.png")
+
+    img = image[0]
+    img.save("sana.png")
+    
     return os.path.abspath("sana.png")
 
 
@@ -59,11 +64,11 @@ if __name__ == "__main__":
     def callback(s: int):
         print(s)
         
-    object_prompt = "a cute snowman toy with a scarf"
+    object_prompt = "A christmas tree with a star on top and colorful ornaments."
     prompt=f"A single whimsical, highly detailed 3D object centered in the frame against a simple dark background. The object should fill most of the image, with no distracting elements around it. Capture it from a slightly angled front-facing perspective so its features are fully visible. Render it in a bright, vibrant, and polished illustrative style with clean edges, crisp details, and subtle, even lighting. The result should look like a standalone, hero-style product shot of a fantastical or stylized building, creature, or construct, similar to the style of high-quality concept art pieces. The object itself should be a unique, original design that's visually striking and interesting to look at, with a clear focal point and a sense of depth and dimension. The object is {object_prompt}."
-    # load_model()
-    # run(prompt, callback)
-    # unload_model()
+    load_model()
+    run(prompt, callback)
+    unload_model()
     
     inputfile = "sana.png"
     image = Image.open(inputfile)

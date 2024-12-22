@@ -28,3 +28,6 @@ else {
 # diffusers HEAD
 ~/.local/bin/uv pip install git+https://github.com/huggingface/diffusers
 Check "Install diffusers failed"
+
+~/.local/bin/uv pip install openai
+Check "Install openai failed"
