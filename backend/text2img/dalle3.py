@@ -1,5 +1,6 @@
-import requests
 from openai import OpenAI
+import base64
+
 
 def get_dalle3_image_bytes(prompt):
     client = OpenAI()
@@ -8,15 +9,16 @@ def get_dalle3_image_bytes(prompt):
         "n": 1,
         "size": "1024x1024",
         "prompt": prompt,
-        "quality": "standard"
+        "quality": "standard",
+        "response_format": "b64_json",
+        "style": "vivid",
     }
+    print(prompt)
     response = client.images.generate(**image_params)
-    url = response.data[0].url
-    # Download the image
-    response = requests.get(url)
-    return response.content
-    
-    a = 0
+    b64_json = response.data[0].b64_json
+    b64_bytes = base64.b64decode(b64_json)
+    return b64_bytes
+
 
 if __name__ == "__main__":
     object_prompt = "A christmas tree with a star on top and colorful ornaments."

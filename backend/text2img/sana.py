@@ -22,8 +22,8 @@ def load_model():
     )
     pipe.to("cuda")
     
-    pipe.vae.to(torch.bfloat16)
-    pipe.text_encoder.to(torch.bfloat16)
+    # pipe.vae.to(torch.bfloat16)
+    # pipe.text_encoder.to(torch.bfloat16)
     
 def unload_model():
     global pipe
@@ -32,7 +32,7 @@ def unload_model():
     gc.collect()
     torch.cuda.empty_cache()
 
-def run(object_prompt: str, callback: PipelineCallback) -> str:
+def run(prompt: str, callback: PipelineCallback) -> str:
     global pipe
     if not pipe:
         return "error model not initialised"
@@ -41,7 +41,6 @@ def run(object_prompt: str, callback: PipelineCallback) -> str:
         callback(step)
         return {}
 
-    prompt = f"A single whimsical, highly detailed 3D object centered in the frame against a simple dark background. The object should fill most of the image, with no distracting elements around it. Capture it from a slightly angled front-facing perspective so its features are fully visible. Render it in a bright, vibrant, and polished illustrative style with clean edges, crisp details, and subtle, even lighting. The result should look like a standalone, hero-style product shot of a fantastical or stylized building, creature, or construct, similar to the style of high-quality concept art pieces. The object itself should be a unique, original design that's visually striking and interesting to look at, with a clear focal point and a sense of depth and dimension. The object is {object_prompt}."
 
     image = pipe(
         prompt=prompt,
@@ -63,13 +62,15 @@ def run(object_prompt: str, callback: PipelineCallback) -> str:
 if __name__ == "__main__":
     def callback(s: int):
         print(s)
-        
+    torch.cuda.memory._record_memory_history()
+
     object_prompt = "A christmas tree with a star on top and colorful ornaments."
     prompt=f"A single whimsical, highly detailed 3D object centered in the frame against a simple dark background. The object should fill most of the image, with no distracting elements around it. Capture it from a slightly angled front-facing perspective so its features are fully visible. Render it in a bright, vibrant, and polished illustrative style with clean edges, crisp details, and subtle, even lighting. The result should look like a standalone, hero-style product shot of a fantastical or stylized building, creature, or construct, similar to the style of high-quality concept art pieces. The object itself should be a unique, original design that's visually striking and interesting to look at, with a clear focal point and a sense of depth and dimension. The object is {object_prompt}."
     load_model()
     run(prompt, callback)
     unload_model()
-    
+    torch.cuda.memory._dump_snapshot("sana.pickle")
+
     inputfile = "sana.png"
     image = Image.open(inputfile)
     output = rembg.remove(image)

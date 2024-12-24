@@ -1,5 +1,6 @@
 # backend/main.py
 import io
+from enum import Enum
 
 import rembg
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -10,10 +11,15 @@ import text2img.sana as sana
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 import generate_3d_gaussian
-
+from text2img.dalle3 import get_dalle3_image_bytes
 app = FastAPI()
 
 executor = ThreadPoolExecutor(max_workers=4)
+
+class ImageModel(Enum):
+    dalle3 = "dalle3"
+    sana = "sana"
+
 
 @app.websocket("/ws/generate-image")
 async def websocket_endpoint(websocket: WebSocket):
@@ -23,13 +29,25 @@ async def websocket_endpoint(websocket: WebSocket):
         data = await websocket.receive_text()
         message = json.loads(data)
         prompt = message.get("prompt")
+        image_model_str = message.get("image_model")
         if not prompt:
             await websocket.send_text(json.dumps({"type": "error", "message": "No prompt provided."}))
             await websocket.close()
             return
+        if not image_model_str:
+            await websocket.send_text(json.dumps({"type": "error", "message": "No image model provided."}))
+            await websocket.close()
+            return
+        
+        try:
+            image_model = ImageModel[image_model_str]
+        except KeyError:
+            await websocket.send_text(json.dumps({"type": "error", "message": "Invalid image model provided."}))
+            await websocket.close()
+            return
 
         # Replace this with actual image generation logic
-        await generate_image(prompt, websocket)
+        await generate_image(prompt, image_model, websocket)
         await websocket.close()
     except WebSocketDisconnect:
         print("Client disconnected")
@@ -37,30 +55,37 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
         await websocket.close()
 
-async def generate_image(prompt: str, websocket: WebSocket) -> str:
-    async def send_progress(progress: int):
-        await websocket.send_text(json.dumps({"type": "progress", "progress": progress}))
 
-    def callback(step: int):
-        progress = int((step / 20) * 100)
-        print(f"Progress: {progress}%")
-        asyncio.run(send_progress(progress))
+async def generate_image(object_prompt: str, image_model: ImageModel, websocket: WebSocket) -> str:
+    prompt = f"A single whimsical, highly detailed 3D object centered in the frame against a simple dark background. The object should fill most of the image, with no distracting elements around it. Capture it from a slightly angled front-facing perspective so its features are fully visible. Render it in a bright, vibrant, and polished illustrative style with clean edges, crisp details, and subtle, even lighting. The result should look like a standalone, hero-style product shot of a fantastical or stylized building, creature, or construct, similar to the style of high-quality concept art pieces. The object itself should be a unique, original design that's visually striking and interesting to look at, with a clear focal point and a sense of depth and dimension. The object is {object_prompt}."
+    if image_model == ImageModel.dalle3:
+        img = get_dalle3_image_bytes(prompt)
+        rembg_img = rembg.remove(img)
+        await websocket.send_bytes(rembg_img)
+    else:
+        async def send_progress(progress: int):
+            await websocket.send_text(json.dumps({"type": "progress", "progress": progress}))
     
+        def callback(step: int):
+            progress = int((step / 20) * 100)
+            print(f"Progress: {progress}%")
+            asyncio.run(send_progress(progress))
+        
+    
+        sana.load_model()
+        image_path = await asyncio.get_event_loop().run_in_executor(
+            executor, sana.run, prompt, callback
+        )
+        sana.unload_model()
+    
+        if image_path.startswith("error"):
+            await websocket.send_text(json.dumps({"type": "error", "message": image_path}))
+            return
+    
+        image_bytes = await generate_webp_image(image_path)
 
-    sana.load_model()
-    image_path = await asyncio.get_event_loop().run_in_executor(
-        executor, sana.run, prompt, callback
-    )
-    sana.unload_model()
-
-    if image_path.startswith("error"):
-        await websocket.send_text(json.dumps({"type": "error", "message": image_path}))
-        return
-
-    image_bytes = await generate_webp_image(image_path)
-
-    # Send the WebP image as binary data
-    await websocket.send_bytes(image_bytes)
+        # Send the WebP image as binary data
+        await websocket.send_bytes(image_bytes)
 
 async def generate_webp_image(image_path: str) -> bytes:
     with Image.open(image_path) as img:

@@ -35,7 +35,6 @@ export default function DropZone({
         border: "2px dashed #ccc",
         p: 4,
         textAlign: "center",
-        width: 300,
         cursor: "pointer",
       }}
     >
