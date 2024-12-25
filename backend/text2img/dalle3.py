@@ -11,7 +11,7 @@ def get_dalle3_image_bytes(prompt):
         "prompt": prompt,
         "quality": "standard",
         "response_format": "b64_json",
-        "style": "vivid",
+        "style": "natural",
     }
     print(prompt)
     response = client.images.generate(**image_params)
