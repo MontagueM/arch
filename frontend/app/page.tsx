@@ -16,10 +16,11 @@ import DropZone from "../components/DropZone";
 import ThreeViewer from "../components/ThreeViewer";
 import { useGlobalState } from "../lib/state";
 import { useWebSocketProcess } from "../hooks/useWebSocketProcess";
+import axios from "axios";
 
 enum ImageModel {
   Dalle3 = "dalle3",
-  Sama = "sama",
+  Sana = "sana",
 }
 
 export default function SinglePage() {
@@ -152,6 +153,34 @@ export default function SinglePage() {
     setImageUrl(null);
   }, []);
 
+  const handleSendToBlender = useCallback(async () => {
+    if (!modelDataUrl) {
+      return;
+    }
+
+    try {
+      const modelData = await fetch(modelDataUrl).then((res) => res.blob());
+      const response = await axios.post(
+        "http://localhost:5666/upload",
+        modelData,
+        {
+          headers: {
+            "Content-Type": "application/octet-stream",
+          },
+        },
+      );
+      if (response.status !== 204) {
+        throw new Error(response.data as string);
+      }
+      console.log("Model sent to Blender.");
+    } catch (error: any) {
+      console.error("Failed to send model to Blender:", error.message);
+      alert(
+        "Failed to send model to Blender. Please check if the plugin is installed and running and try again.",
+      );
+    }
+  }, [modelDataUrl]);
+
   return (
     <Box
       sx={{
@@ -193,7 +222,7 @@ export default function SinglePage() {
                 size="small"
               >
                 <MenuItem value={ImageModel.Dalle3}>DALL-E 3</MenuItem>
-                <MenuItem value={ImageModel.Sama}>SAMA</MenuItem>
+                <MenuItem value={ImageModel.Sana}>Sana</MenuItem>
               </Select>
               <Button
                 variant="contained"
@@ -394,14 +423,29 @@ export default function SinglePage() {
             <Typography variant="h5" gutterBottom sx={{ mb: 0 }}>
               3D Model
             </Typography>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleSaveMesh}
-              disabled={!modelDataUrl}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+              }}
             >
-              Save Mesh
-            </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSaveMesh}
+                disabled={!modelDataUrl}
+              >
+                Save Mesh
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSendToBlender}
+                disabled={!modelDataUrl}
+              >
+                Send to Blender
+              </Button>
+            </Box>
           </Box>
 
           {/* Loading Indicator / 3D Model */}
