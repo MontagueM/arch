@@ -150,11 +150,23 @@ async def generate_3d_view(image_data: bytes, websocket: WebSocket) -> None:
 
 
 @app.websocket("/ws/generate-3d-model")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        await generate_3d_model(websocket)
+        await websocket.close()
+    except WebSocketDisconnect:
+        print("Client disconnected")
+    except Exception as e:
+        await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+        await websocket.close()
+        
+
 async def generate_3d_model(websocket: WebSocket) -> None:
     # read ply from output/test.ply and return the bytes
-    _bytes = open("TRELLIS/output/sample.glb", "rb").read()
-    await websocket.send_bytes(_bytes)
-    return
+    # _bytes = open("output/sample.glb", "rb").read()
+    # await websocket.send_bytes(_bytes)
+    # return
 
     async def send_progress(progress: int):
         await websocket.send_text(json.dumps({"type": "progress", "progress": progress}))
@@ -164,11 +176,9 @@ async def generate_3d_model(websocket: WebSocket) -> None:
         print(f"Progress: {progress}%")
         asyncio.run(send_progress(progress))
 
-    generate_3d_gaussian.load_model()
     gaussian_ply_bytes = await asyncio.get_event_loop().run_in_executor(
-        executor, generate_3d_gaussian.run, image_data, callback
+        executor, generate_3d_gaussian.get_mesh, callback
     )
-    generate_3d_gaussian.unload_model()
 
     await websocket.send_bytes(gaussian_ply_bytes)
 

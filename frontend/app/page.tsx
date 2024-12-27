@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import DropZone from "../components/DropZone";
-import ThreeDViewer from "../components/ThreeDViewer";
+import ThreeViewer from "../components/ThreeViewer";
 import { useGlobalState } from "../lib/state";
 import { useWebSocketProcess } from "../hooks/useWebSocketProcess";
 
@@ -23,9 +23,7 @@ enum ImageModel {
 }
 
 export default function SinglePage() {
-  const [localPrompt, setLocalPrompt] = useState(
-    "a cuddly snowman toy with a blue scarf",
-  );
+  const [localPrompt, setLocalPrompt] = useState("a fantasy sword");
   const [imageModel, setImageModel] = useState<ImageModel>(ImageModel.Dalle3);
   const [localFile, setLocalFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -108,7 +106,7 @@ export default function SinglePage() {
           },
           onMessageBlob: (data) => {
             const url = URL.createObjectURL(
-              new Blob([data], { type: "model/ply" }),
+              new Blob([data], { type: "application/octet-stream" }),
             );
             setViewDataUrl(url);
           },
@@ -354,7 +352,7 @@ export default function SinglePage() {
                 border: "1px solid #ccc",
               }}
             >
-              <ThreeDViewer data={viewDataUrl} />
+              <ThreeViewer gaussianUrl={viewDataUrl} />
             </Box>
           )}
 
@@ -431,7 +429,7 @@ export default function SinglePage() {
                 border: "1px solid #ccc",
               }}
             >
-              <ThreeDViewer data={modelDataUrl} />
+              <ThreeViewer glbUrl={modelDataUrl} />
             </Box>
           )}
 

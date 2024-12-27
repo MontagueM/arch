@@ -56,7 +56,7 @@ def run(image: bytes, callback: Callable[[int], None]) -> bytes:
     ply.write("output/test.ply")
     return s.getvalue()
 
-def get_mesh() -> bytes | str:
+def get_mesh(callback: Callable[[int], None]) -> bytes | str:
     global cached_slat, cached_gaussian
     
     if not cached_slat or not cached_gaussian:
@@ -77,12 +77,12 @@ def get_mesh() -> bytes | str:
         target_triangle_count=target_triangle_count,
         texture_size=texture_size,
     )
-    glb.export("output/sample.glb")
-    return glb.export()
+    glb.export("output/sample.glb", include_normals=True, extension_webp=False)
+    return open("output/sample.glb", "rb").read()
 
     
 if __name__ == "__main__":
     load_model()
-    run(open("assets/example_image/typical_building_castle.png", "rb").read(), lambda step: print(f"Progress: {step * 20}%"))
+    run(open("TRELLIS/assets/example_image/typical_building_castle.png", "rb").read(), lambda step: print(f"Progress: {step * 20}%"))
     unload_model()
     get_mesh()
