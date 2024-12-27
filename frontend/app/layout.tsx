@@ -6,8 +6,6 @@ import { ThemeProvider } from "@mui/material/styles";
 import React from "react";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import theme from "./theme";
-import { StateProvider } from "@/lib/state";
-import { Box } from "@mui/material";
 
 const roboto = Roboto({ subsets: ["latin"], weight: ["400", "700"] });
 
@@ -25,9 +23,7 @@ export default function RootLayout({
     <html lang="en" className={roboto.className}>
       <body>
         <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <StateProvider>{children}</StateProvider>
-          </ThemeProvider>
+          <ThemeProvider theme={theme}>{children}</ThemeProvider>
         </AppRouterCacheProvider>
       </body>
     </html>

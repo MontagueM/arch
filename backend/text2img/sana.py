@@ -48,7 +48,7 @@ def run(prompt: str, callback: PipelineCallback) -> str:
         width=1024,
         guidance_scale=5.0,
         num_inference_steps=20,
-        generator=torch.Generator(device="cuda").manual_seed(42),
+        generator=torch.Generator(device="cuda").seed(),
         callback_on_step_end=progress_callback,
     )[0]
 

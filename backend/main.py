@@ -196,5 +196,9 @@ async def websocket_endpoint(websocket: WebSocket):
             processed_bytes = buf.getvalue()
 
             await websocket.send_bytes(processed_bytes)
+            await websocket.close()
     except WebSocketDisconnect:
         print("Client disconnected")
+    except Exception as e:
+        await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+        await websocket.close()

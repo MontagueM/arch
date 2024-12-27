@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import DropZone from "../components/DropZone";
 import ThreeViewer from "../components/ThreeViewer";
-import { useGlobalState } from "../lib/state";
 import { useWebSocketProcess } from "../hooks/useWebSocketProcess";
 import axios from "axios";
 
@@ -31,12 +30,36 @@ export default function SinglePage() {
   const [viewDataUrl, setViewDataUrl] = useState<string | null>(null);
   const [modelDataUrl, setModelDataUrl] = useState<string | null>(null);
 
-  const { setDroppedImage } = useGlobalState();
+  const removeBg = useWebSocketProcess(
+    "/ws/remove-background",
+    "Removing background",
+  );
+  const genImage = useWebSocketProcess(
+    "/ws/generate-image",
+    "Generating image",
+  );
+  const gen3DView = useWebSocketProcess(
+    "/ws/generate-3d-view",
+    "Generating 3D View",
+  );
+  const gen3DModel = useWebSocketProcess(
+    "/ws/generate-3d-model",
+    "Generating 3D Model",
+  );
 
-  const removeBg = useWebSocketProcess("/ws/remove-background");
-  const genImage = useWebSocketProcess("/ws/generate-image");
-  const gen3DView = useWebSocketProcess("/ws/generate-3d-view");
-  const gen3DModel = useWebSocketProcess("/ws/generate-3d-model");
+  const loading = useMemo(() => {
+    return (
+      removeBg.loading ||
+      genImage.loading ||
+      gen3DView.loading ||
+      gen3DModel.loading
+    );
+  }, [
+    removeBg.loading,
+    genImage.loading,
+    gen3DView.loading,
+    gen3DModel.loading,
+  ]);
 
   /**
    * Handle dropping of the image file.
@@ -46,6 +69,8 @@ export default function SinglePage() {
       if (!file) return;
       setLocalFile(file);
       setImageUrl(null);
+      setViewDataUrl(null);
+      setModelDataUrl(null);
 
       const reader = new FileReader();
       reader.onload = () => {
@@ -72,6 +97,10 @@ export default function SinglePage() {
    */
   const handleGenerateImage = useCallback(() => {
     if (!localPrompt.trim()) return;
+    setImageUrl(null);
+    setViewDataUrl(null);
+    setModelDataUrl(null);
+
     genImage.startProcess({
       onOpen: (ws) => {
         ws.send(
@@ -96,6 +125,7 @@ export default function SinglePage() {
   const handleGenerate3DViewFromImage = useCallback(() => {
     if (!imageUrl) return;
     setViewDataUrl(null);
+    setModelDataUrl(null);
 
     fetch(imageUrl)
       .then((res) => res.blob())
@@ -173,8 +203,11 @@ export default function SinglePage() {
         throw new Error(response.data as string);
       }
       console.log("Model sent to Blender.");
-    } catch (error: any) {
-      console.error("Failed to send model to Blender:", error.message);
+    } catch (error: unknown) {
+      console.error(
+        "Failed to send model to Blender:",
+        (error as Error)?.message,
+      );
       alert(
         "Failed to send model to Blender. Please check if the plugin is installed and running and try again.",
       );
@@ -188,12 +221,10 @@ export default function SinglePage() {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden", // Prevent scrolling
+        overflow: "hidden",
       }}
     >
-      {/* Top Row (45%): Left = Input, Right = Image */}
       <Box sx={{ display: "flex", flex: "0 0 45%", overflow: "hidden" }}>
-        {/* Input Box */}
         <Box
           sx={{
             width: "50%",
@@ -227,44 +258,27 @@ export default function SinglePage() {
               <Button
                 variant="contained"
                 onClick={handleGenerateImage}
-                disabled={!localPrompt.trim()}
+                disabled={!localPrompt.trim() || loading}
+                size="small"
               >
-                {imageUrl ? "Generate New Image" : "Generate Image"}
+                Generate Image
               </Button>
             </Box>
 
             <Divider flexItem>OR</Divider>
 
-            {!removeBg.loading && (
-              <DropZone onDrop={handleDrop} disabled={removeBg.loading} />
-            )}
-
-            {removeBg.loading && (
-              <Box sx={{ position: "relative", display: "inline-flex" }}>
-                <CircularProgress />
-                <Box
-                  sx={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <span>Processing...</span>
-                </Box>
-              </Box>
-            )}
+            <DropZone onDrop={handleDrop} disabled={loading} />
 
             {localFile && (
-              <Button variant="outlined" onClick={handleCancel} fullWidth>
-                Cancel/Reset
-              </Button>
+              <Box>
+                <Button variant="outlined" onClick={handleCancel} size="small">
+                  Cancel/Reset
+                </Button>
+              </Box>
             )}
           </Stack>
         </Box>
 
-        {/* Image Box */}
         <Box
           sx={{
             width: "50%",
@@ -274,7 +288,6 @@ export default function SinglePage() {
             overflow: "hidden",
           }}
         >
-          {/* Header row with "Image" on left, "Generate 3D View >>" on right */}
           <Box
             display="flex"
             justifyContent="space-between"
@@ -317,16 +330,27 @@ export default function SinglePage() {
                   color: "#888",
                 }}
               >
-                No image yet
+                {genImage.loading || removeBg.loading ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 2,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {genImage.loadingElement || removeBg.loadingElement}
+                  </Box>
+                ) : (
+                  <Typography>No image yet</Typography>
+                )}
               </Box>
             )}
           </Box>
         </Box>
       </Box>
 
-      {/* Bottom Row (55%): Left = 3D View, Right = 3D Model */}
       <Box sx={{ display: "flex", flex: "0 0 55%", overflow: "hidden" }}>
-        {/* 3D View Box */}
         <Box
           sx={{
             width: "50%",
@@ -336,7 +360,6 @@ export default function SinglePage() {
             overflow: "hidden",
           }}
         >
-          {/* Header row with "3D View" on left, "Generate 3D Model >>" on right */}
           <Box
             display="flex"
             justifyContent="space-between"
@@ -356,21 +379,17 @@ export default function SinglePage() {
             </Button>
           </Box>
 
-          {/* Loading Indicator / 3D View */}
           {gen3DView.loading && (
-            <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-              {gen3DView.progress > 0 ? (
-                <>
-                  <CircularProgress
-                    variant="determinate"
-                    value={gen3DView.progress}
-                  />
-                  <Typography>{gen3DView.progress}%</Typography>
-                </>
-              ) : (
-                <CircularProgress />
-              )}
-            </Stack>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "80%",
+              }}
+            >
+              {gen3DView.loadingElement}
+            </Box>
           )}
 
           {!gen3DView.loading && viewDataUrl && (
@@ -395,7 +414,7 @@ export default function SinglePage() {
                 alignItems: "center",
                 justifyContent: "center",
                 color: "#888",
-                border: "1px solid #ccc",
+                border: "1px",
               }}
             >
               No 3D view yet
@@ -403,7 +422,6 @@ export default function SinglePage() {
           )}
         </Box>
 
-        {/* 3D Model Box */}
         <Box
           sx={{
             width: "50%",
@@ -413,7 +431,6 @@ export default function SinglePage() {
             overflow: "hidden",
           }}
         >
-          {/* Header row with "3D Model" on left, "Save Mesh" on right */}
           <Box
             display="flex"
             justifyContent="space-between"
@@ -448,21 +465,17 @@ export default function SinglePage() {
             </Box>
           </Box>
 
-          {/* Loading Indicator / 3D Model */}
           {gen3DModel.loading && (
-            <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-              {gen3DModel.progress > 0 ? (
-                <>
-                  <CircularProgress
-                    variant="determinate"
-                    value={gen3DModel.progress}
-                  />
-                  <Typography>{gen3DModel.progress}%</Typography>
-                </>
-              ) : (
-                <CircularProgress />
-              )}
-            </Stack>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "80%",
+              }}
+            >
+              {gen3DModel.loadingElement}
+            </Box>
           )}
 
           {!gen3DModel.loading && modelDataUrl && (
@@ -487,7 +500,7 @@ export default function SinglePage() {
                 alignItems: "center",
                 justifyContent: "center",
                 color: "#888",
-                border: "1px solid #ccc",
+                border: "1px",
               }}
             >
               No 3D model yet

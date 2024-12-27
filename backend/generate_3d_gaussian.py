@@ -2,6 +2,9 @@ import gc
 import io
 import os
 from typing import Callable
+
+import numpy as np
+
 from TRELLIS.trellis.models import from_pretrained
 from TRELLIS.trellis.utils import postprocessing_utils
 
@@ -41,7 +44,7 @@ def run(image: bytes, callback: Callable[[int], None]) -> bytes:
     outputs = pipeline.run(
         image,
         # Optional parameters
-        seed=1,
+        seed=np.random.randint(0, 1000),
         formats=["gaussian"],
         step_callback=callback,
     )

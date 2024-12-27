@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { Box, CircularProgress, Typography } from "@mui/material";
 
 export interface UseWebSocketProcessOptions {
   onOpen?: (ws: WebSocket) => void;
@@ -14,7 +15,7 @@ interface WebSocketBaseMessage {
   message?: string;
 }
 
-export function useWebSocketProcess(wsUrl: string) {
+export function useWebSocketProcess(wsUrl: string, loadingText: string) {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
@@ -46,14 +47,12 @@ export function useWebSocketProcess(wsUrl: string) {
             } else if (msg.type === "error" && msg.message) {
               console.error("WS error:", msg.message);
             } else {
-              setLoading(false);
               options.onMessageString?.(data);
             }
           } catch (err) {
             console.error("JSON parse error:", err);
           }
         } else if (data instanceof Blob) {
-          setLoading(false);
           options.onMessageBlob?.(data);
         } else {
           console.error("Unknown message type:", data);
@@ -77,11 +76,38 @@ export function useWebSocketProcess(wsUrl: string) {
     setProgress(Math.max(0, Math.min(100, val)));
   }, []);
 
+  const loadingElement = useMemo(() => {
+    if (!loading) {
+      return null;
+    }
+
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        <CircularProgress
+          variant={progress > 0 ? "determinate" : "indeterminate"}
+          value={progress}
+        />
+        <Typography>{loadingText}...</Typography>
+        {progress > 0 && <Typography>{progress}%</Typography>}
+      </Box>
+    );
+  }, [loading, loadingText, progress]);
+
   return {
     loading,
     progress,
     setLoading,
     setProgress: setProgressSafely,
     startProcess,
+    loadingElement,
   };
 }

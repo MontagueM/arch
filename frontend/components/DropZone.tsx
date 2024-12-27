@@ -1,16 +1,13 @@
-import { useCallback } from "react";
+import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Box, Typography } from "@mui/material";
 
 interface ImageDropZoneProps {
   onDrop: (file: File | null) => void;
-  disabled?: boolean;
+  disabled: boolean;
 }
 
-export default function DropZone({
-  onDrop,
-  disabled = false,
-}: ImageDropZoneProps) {
+export default function DropZone({ onDrop, disabled }: ImageDropZoneProps) {
   const handleDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
