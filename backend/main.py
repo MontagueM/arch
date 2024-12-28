@@ -1,5 +1,6 @@
 # backend/main.py
 import io
+import os
 from enum import Enum
 
 import rembg
@@ -176,11 +177,18 @@ async def generate_3d_model(websocket: WebSocket) -> None:
         print(f"Progress: {progress}%")
         asyncio.run(send_progress(progress))
 
-    gaussian_ply_bytes = await asyncio.get_event_loop().run_in_executor(
+    gaussian_glb_bytes = await asyncio.get_event_loop().run_in_executor(
         executor, generate_3d_gaussian.get_mesh, callback
     )
 
-    await websocket.send_bytes(gaussian_ply_bytes)
+    await websocket.send_bytes(gaussian_glb_bytes)
+    model_path = "output/model.glb"
+    with open(model_path, "wb") as f:
+        f.write(gaussian_glb_bytes)
+    abs_model_path = os.path.abspath(model_path)
+    print(f"Model saved to: {abs_model_path}")
+    abs_python_path = os.path.abspath("arch_unreal/arch_unreal.py")
+    await websocket.send_text(json.dumps({"type": "python", "python": f"py \"{abs_python_path}\" \"{abs_model_path}\""}))
 
 @app.websocket("/ws/remove-background")
 async def websocket_endpoint(websocket: WebSocket):

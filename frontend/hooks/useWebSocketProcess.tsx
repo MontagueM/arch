@@ -9,7 +9,7 @@ export interface UseWebSocketProcessOptions {
   onClose?: () => void;
 }
 
-interface WebSocketBaseMessage {
+export interface WebSocketBaseMessage {
   type: string;
   progress?: number;
   message?: string;

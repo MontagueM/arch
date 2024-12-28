@@ -4,7 +4,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   Box,
   Button,
-  CircularProgress,
   Divider,
   MenuItem,
   Select,
@@ -14,7 +13,10 @@ import {
 } from "@mui/material";
 import DropZone from "../components/DropZone";
 import ThreeViewer from "../components/ThreeViewer";
-import { useWebSocketProcess } from "../hooks/useWebSocketProcess";
+import {
+  useWebSocketProcess,
+  WebSocketBaseMessage,
+} from "../hooks/useWebSocketProcess";
 import axios from "axios";
 
 enum ImageModel {
@@ -29,6 +31,7 @@ export default function SinglePage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [viewDataUrl, setViewDataUrl] = useState<string | null>(null);
   const [modelDataUrl, setModelDataUrl] = useState<string | null>(null);
+  const [pythonCommand, setPythonCommand] = useState<string | null>(null);
 
   const removeBg = useWebSocketProcess(
     "/ws/remove-background",
@@ -151,6 +154,7 @@ export default function SinglePage() {
   const handleGenerate3DModel = useCallback(() => {
     if (!viewDataUrl) return;
     setModelDataUrl(null);
+    setPythonCommand(null);
 
     gen3DModel.startProcess({
       onMessageBlob: (data) => {
@@ -158,6 +162,15 @@ export default function SinglePage() {
           new Blob([data], { type: "model/glb" }),
         );
         setModelDataUrl(url);
+      },
+      onMessageString: (data) => {
+        type PythonMessage = WebSocketBaseMessage & { python: string };
+
+        const obj: PythonMessage = JSON.parse(data);
+        if (obj.type !== "python") {
+          return;
+        }
+        setPythonCommand(obj.python);
       },
     });
   }, [viewDataUrl, gen3DModel]);
@@ -213,6 +226,43 @@ export default function SinglePage() {
       );
     }
   }, [modelDataUrl]);
+
+  const handleSendToUnreal = useCallback(async () => {
+    if (!modelDataUrl) {
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        "http://localhost:30010/remote/object/call",
+        {
+          objectPath: "/Script/Engine.Default__KismetSystemLibrary",
+          functionName: "ExecuteConsoleCommand",
+          parameters: {
+            Command: pythonCommand,
+          },
+          generateTransaction: true,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      if (response.status !== 200) {
+        throw new Error(response.data as string);
+      }
+      console.log("Model sent to Unreal.");
+    } catch (error: unknown) {
+      console.error(
+        "Failed to send model to Unreal:",
+        (error as Error)?.message,
+      );
+      alert(
+        "Failed to send model to Unreal. Please check if the plugin is installed and running and try again.",
+      );
+    }
+  }, [modelDataUrl, pythonCommand]);
 
   return (
     <Box
@@ -461,6 +511,14 @@ export default function SinglePage() {
                 disabled={!modelDataUrl}
               >
                 Send to Blender
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSendToUnreal}
+                disabled={!modelDataUrl}
+              >
+                Send to Unreal
               </Button>
             </Box>
           </Box>
