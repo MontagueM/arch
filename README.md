@@ -16,4 +16,4 @@ to use "send to unreal":
 
 ## usage
 
-start frontend with `npm start` and backend with `npm run start:dev`.
+start frontend and backend with `npm dev`.
