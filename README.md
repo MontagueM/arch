@@ -2,6 +2,8 @@
 
 arch is a web app for a simple text/image -> 3d model gen ai interface.
 
+![image](https://github.com/user-attachments/assets/c674a696-36a4-4164-9c7a-390023b57afe)
+
 ## setup
 
 clone with submodules and make sure trellis works.
