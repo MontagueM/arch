@@ -13,3 +13,7 @@ to use "send to unreal":
 * go to 'project settings' -> 'plugins' -> 'remote control'
 * enable 'auto start server web server'
 * enable 'restrict server access', 'enable remote python execution', and 'allow console command remote execution'
+
+## usage
+
+start frontend with `npm start` and backend with `npm run start:dev`.
